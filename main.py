@@ -1,10 +1,11 @@
 import requests
-import execjs
-from jscode import jscode
 from bs4 import BeautifulSoup
 import json
 import sys
 from datetime import datetime
+import base64
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
 import urllib3
 urllib3.disable_warnings()
 session=requests.session()
@@ -18,9 +19,15 @@ zjuam_pubkey_resp=session.get(zjuam_pubkey_url)
 zjuam_login_headers={
     'User-Agent': user_agent,
 }
+password_bytes = bytes(zju_password, 'ascii')
+password_int = int.from_bytes(password_bytes, 'big')
+e_int = int(zjuam_pubkey_resp.json()["exponent"], 16)
+M_int = int(zjuam_pubkey_resp.json()["modulus"], 16)
+result_int = pow(password_int, e_int, M_int)
+encrypt_password=hex(result_int)[2:].rjust(128, '0')
 zjuam_login_data={
     'username': zju_username,
-    'password': execjs.compile(jscode).call('encrypt',zjuam_pubkey_resp.json()["modulus"],zjuam_pubkey_resp.json()["exponent"],zju_password),
+    'password': encrypt_password,
     '_eventId': 'submit',
     'execution': BeautifulSoup(zjuam_login_resp.text,"html.parser").find("input",attrs={'name':'execution'})['value'],
     'authcode': '',
@@ -123,6 +130,7 @@ booking_seat_data={
     'day': booking_date_['data'][0]['day'],
     'startTime': booking_date_['data'][0]['times'][0]['start'],
     'endTime': booking_date_['data'][0]['times'][0]['end'],
+    'endTime': "22:30",
     'authorization': booking_user_authorization,
 }
 booking_seat_resp=session.post(booking_seat_url,headers=booking_seat_headers,data=booking_seat_data)
@@ -158,25 +166,15 @@ booking_confirm_headers={
     'User-Agent': user_agent,
     'authorization': booking_user_authorization,
 }
-encrypt='''
-const CryptoJS = require('./crypto-js');
-function encrypt(seat_id,segment,date){
-    c = '{"seat_id":"'+seat_id+'","segment":"'+segment+'"}';
-    v = date;
-    y = "ZZWBKJ_ZHIHUAWEI";
-    // return v;
-    var v = CryptoJS.enc.Utf8.parse(v);
-    var y = CryptoJS.enc.Utf8.parse(y);
-    var b = CryptoJS.AES.encrypt(c, v, {
-        iv: y,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-});
-    return b.toString();
-}
-'''
+key = str(date+date[::-1]).encode('utf-8')
+iv = 'ZZWBKJ_ZHIHUAWEI'.encode('utf-8')
+segment = booking_date_['data'][0]['times'][0]['id']
+plaintext = f'{{"seat_id":"{user_select_seat}","segment":"{segment}"}}'.encode('utf-8')
+cipher = AES.new(key, AES.MODE_CBC, iv)
+ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))
+ciphertext_base64 = base64.b64encode(ciphertext).decode('utf-8')
 booking_confirm_data={
-    'aesjson': execjs.compile(encrypt).call("encrypt",user_select_seat,booking_date_['data'][0]['times'][0]['id'],date+date[::-1]),
+    'aesjson': ciphertext_base64,
     'authorization': booking_user_authorization,
 }
 booking_confirm_resp=session.post(booking_confirm_url,headers=booking_confirm_headers,data=booking_confirm_data)
