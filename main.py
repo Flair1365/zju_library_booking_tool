@@ -130,7 +130,7 @@ booking_seat_data={
     'day': booking_date_['data'][0]['day'],
     'startTime': booking_date_['data'][0]['times'][0]['start'],
     'endTime': booking_date_['data'][0]['times'][0]['end'],
-    'endTime': "22:30",
+    # 'endTime': "22:30",
     'authorization': booking_user_authorization,
 }
 booking_seat_resp=session.post(booking_seat_url,headers=booking_seat_headers,data=booking_seat_data)
