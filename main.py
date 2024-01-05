@@ -5,11 +5,13 @@ from bs4 import BeautifulSoup
 import json
 import sys
 from datetime import datetime
+import urllib3
+urllib3.disable_warnings()
 session=requests.session()
 zju_username=input("请输入统一身份认证用户名：")
 zju_password=input("请输入统一身份认证用户名密码：")
 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.58'
-zjuam_login_url="http://zjuam.zju.edu.cn/cas/login?service=http%3A%2F%2Fbooking.lib.zju.edu.cn%2Fapi%2Fcas%2Fcas"
+zjuam_login_url="http://zjuam.zju.edu.cn/cas/login?service=https%3A%2F%2Fbooking.lib.zju.edu.cn%2Fapi%2Fcas%2Fcas"
 zjuam_login_resp=session.get(zjuam_login_url)
 zjuam_pubkey_url='https://zjuam.zju.edu.cn/cas/v2/getPubKey'
 zjuam_pubkey_resp=session.get(zjuam_pubkey_url)
@@ -23,7 +25,7 @@ zjuam_login_data={
     'execution': BeautifulSoup(zjuam_login_resp.text,"html.parser").find("input",attrs={'name':'execution'})['value'],
     'authcode': '',
 }
-zjuam_login_resp=session.post(zjuam_login_url,headers=zjuam_login_headers,data=zjuam_login_data)
+zjuam_login_resp=session.post(zjuam_login_url,headers=zjuam_login_headers,data=zjuam_login_data,verify=False)
 if "用户名或密码错误" in zjuam_login_resp.text:
     print("统一身份认证用户名或密码错误")
     sys.exit(1)
